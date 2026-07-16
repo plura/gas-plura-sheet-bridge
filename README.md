@@ -2,6 +2,12 @@
 
 Reusable Google Apps Script library — validates incoming POST data and writes it to a Google Sheet. Provider-agnostic: usable by WordPress (e.g. via `wp-plugin-plura`'s `plura_cf7_to_sheets`/`plura_to_sheets`), other web apps, or any source that can POST JSON. Not tied to any single client project.
 
+## Workflow (current)
+
+Manual copy-paste. The actual code is edited and tested directly in the Google Apps Script web editor (that's the only place it ever runs — there's no local execution). `src/PluraSheetBridge.js` here is a version-controlled mirror: after making/testing changes in the Apps Script editor, copy the final source back into this file and commit.
+
+**Required project settings** on the live Apps Script project (Project Settings → "Show manifest file" to edit `appsscript.json` there): runtime must be set to **V8** — the code uses optional chaining (`?.`) and nullish coalescing (`??`), which the older Rhino engine doesn't support.
+
 ## Exported API
 
 - `handlePost(e, configData, opts?)` — main entry point, call from a consumer project's `doPost(e)`.
@@ -42,11 +48,11 @@ Reusable Google Apps Script library — validates incoming POST data and writes 
    ```
 3. Deploy the **consumer** project as a Web App (not this library project — this one is imported by reference, not deployed directly).
 
-## Local development
+## Alternative workflow (not in use, but an option later)
 
-```
-npm install
-npx clasp login
-cp .clasp.json.example .clasp.json   # fill in the real scriptId
-npx clasp push
-```
+`clasp` (Google's own CLI, `npm i -g @google/clasp` or as a project devDependency) can sync between this repo and the live Apps Script project instead of manual copy-paste — either direction:
+
+- **Pull-only** (still edit/test in Google's IDE, just automate keeping git in sync): `clasp login`, then `clasp pull` after each change in the editor, instead of hand-copying the code.
+- **Push workflow** (edit locally, deploy from here): `clasp push` after local edits.
+
+Either mode needs a `.clasp.json` (holding the project's `scriptId`, gitignored — same reasoning as `sftp.json` in site repos: environment-specific, not committed) and a `rootDir` pointing at `src/`. Worth adding `package.json` (pinning `@google/clasp` as a devDependency) at that point too, so the CLI version is reproducible instead of whatever's globally installed. None of that exists in this repo right now since it isn't needed for manual copy-paste.
