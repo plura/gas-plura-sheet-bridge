@@ -1,0 +1,7 @@
+{
+  "name": "gas-plura-sheet-bridge",
+  "private": true,
+  "devDependencies": {
+    "@google/clasp": "^2.4.2"
+  }
+}
