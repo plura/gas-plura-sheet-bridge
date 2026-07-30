@@ -48,8 +48,7 @@ function validateRequest(e, config) {
 }
 
 function saveFormData(data, config) {
-  const sheet = SpreadsheetApp.openById(config.sheetId).getSheetByName(config.sheetName);
-  if (!sheet) throw new Error(`Sheet not found: ${config.sheetName}`);
+  const sheet = _resolveSheet(config);
 
   const row = (config.fieldOrder ?? []).map(field => {
     const value = data[field];
@@ -125,6 +124,25 @@ function _extractKey(e, opts) {
   } catch (_) {
     return null;
   }
+}
+
+function _resolveSheet(config) {
+  const ss = SpreadsheetApp.openById(config.sheetId);
+
+  // sheetGid wins outright when set — a wrong gid throws rather than silently
+  // falling back to sheetName and writing to the wrong tab.
+  if (config.sheetGid != null) {
+    // Coerced because getSheetId() returns a number: a quoted gid would never
+    // match under === and would fail identically to a deleted tab.
+    const gid = Number(config.sheetGid);
+    const sheet = ss.getSheets().find(s => s.getSheetId() === gid);
+    if (!sheet) throw new Error(`Sheet not found for gid: ${config.sheetGid}`);
+    return sheet;
+  }
+
+  const sheet = ss.getSheetByName(config.sheetName);
+  if (!sheet) throw new Error(`Sheet not found: ${config.sheetName}`);
+  return sheet;
 }
 
 function _applyTransform(fieldId, value, data, config) {

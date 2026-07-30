@@ -15,19 +15,19 @@ Manual copy-paste. The actual code is edited and tested directly in the Google A
 - `saveFormData(data, config)` — writes a row to the configured sheet, honoring field order and per-field transforms.
 - `createResponse(message, isError?)` — builds the JSON response.
 
-## Config shape
+## Config reference
 
 ```js
 {
-  key: 'registration',          // only needed in multi-config (array) mode — must match gas_config_key
+  key: 'registration',          // array mode only — must match the request's gas_config_key
   allowedDomains: ['example.com'],
   requiredFields: ['email'],
   addTimestamp: true,
   sheetId: '...',               // the SPREADSHEET file id — /spreadsheets/d/<id>/edit — not a tab gid
   sheetName: 'Registrations',   // the tab within that spreadsheet, by its visible name
-  fieldOrder: ['email', 'name', '...'],
-  formatValue: (field, value) => value,     // optional full override
-  transforms: {                              // optional per-field, used if formatValue isn't set
+  fieldOrder: ['email', 'name', 'timestamp'],
+  formatValue: (field, value) => value,     // optional global override
+  transforms: {                              // optional per-field, ignored if formatValue is set
     atividades: { type: 'join', sep: ', ' },
     subscribed: { type: 'bool' },
   },
@@ -35,7 +35,45 @@ Manual copy-paste. The actual code is edited and tested directly in the Google A
 }
 ```
 
+| Option | Type | Default | Behavior |
+| --- | --- | --- | --- |
+| `key` | string | — | Array mode only; matched against the request's `gas_config_key`. Ignored when a single config object is passed. |
+| `allowedDomains` | string[] | `[]` | **Substring** match against `_referrer` — `'example.com'` also matches `evil-example.com.attacker.tld`. Empty or missing rejects every request. |
+| `requiredFields` | string[] | `[]` | Rejects the request if any listed field is **falsy** — `false`, `0` and `''` all count as missing, not just absent keys. |
+| `addTimestamp` | boolean | off | Sets `data.timestamp` to `yyyy-MM-dd HH:mm:ss` in the script's timezone. Add `'timestamp'` to `fieldOrder` or it's computed and discarded. Overwrites any incoming field of that name. |
+| `sheetId` | string | — | The spreadsheet **file** id, from `/spreadsheets/d/<id>/edit`. |
+| `sheetName` | string | — | Target tab by its visible name. Renaming the tab in Sheets breaks it — throws `Sheet not found`. |
+| `sheetGid` | number | — | Target tab by gid (the `#gid=` in the URL). Survives renames. **Wins over `sheetName`** when set; a wrong gid throws rather than falling back. Strings are coerced. |
+| `fieldOrder` | string[] | `[]` | Column order, left to right. Fields not listed are never written; listed fields absent from the payload become empty cells. Required in practice. |
+| `formatValue` | function | — | `(field, value) => cell`. **Global** — if set, `transforms` never runs for any field. Receives the **raw** value. |
+| `transforms` | object | `{}` | Per-field rules, keyed by field name. See below. |
+| `logErrors` | boolean | off | `console.error` for request failures and transform errors. Never changes the response. |
+
 `configData` passed to `handlePost` can be a single config object (no `key` needed), or an array of configs — in array mode, the request must include a `gas_config_key` field (or a custom field name via `opts.keyField`) matching one config's `.key`.
+
+Every request must also send `_referrer` (host or URL). It's checked against `allowedDomains` and stripped before the row is written. `gas_config_key` is **not** stripped — it lands in the sheet if you list it in `fieldOrder`.
+
+## Transforms
+
+Exactly one path runs per field, in this order:
+
+1. **`formatValue`** — if set, wins for every field. Gets the raw value, no normalization.
+2. **Function transform** — `(value, fieldId, data) => cell`. Gets the **normalized** value (see below), not the raw one. If it throws, the error is logged and the **untransformed value is written anyway** — no failed request, so a broken transform shows up as quietly wrong data rather than an error.
+3. **Declarative type** — `{ type: … }`, applied to the raw value.
+4. **Fallback** — arrays are joined with `', '`, everything else is normalized.
+
+| Type | Options | Behavior |
+| --- | --- | --- |
+| `join` | `sep` (default `', '`) | Joins arrays. **Only fires if the value is actually an array** — a single-selection checkbox arrives as a string and passes through untouched. |
+| `bool` / `boolean` | — | Coerces to a real boolean, so Sheets stores `TRUE`/`FALSE` rather than text. Both spellings work. |
+
+## Value handling
+
+Everything not handled above is normalized: `null`/`undefined` → `''`, objects → JSON string, arrays passed through intact, everything else → `String(value)`.
+
+Boolean coercion (`type: 'bool'`) is case-insensitive and trims: `'1'`, `'true'`, `'yes'`, `'on'` → `true`; `'0'`, `'false'`, `'no'`, `'off'` → `false`. Any other non-empty string is `true`.
+
+**Text prefix guard:** string values starting with `=`, `+`, `-` or `@` are written with a leading apostrophe, so Sheets treats them as text instead of a formula. This applies to every value, including `formatValue` output. It's why a phone number submitted as `+351912345678` is stored as `'+351912345678` — the apostrophe is hidden in the Sheets UI but present in exports and API reads.
 
 ## Using it from a consumer project
 
