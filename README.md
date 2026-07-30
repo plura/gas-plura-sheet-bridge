@@ -17,6 +17,23 @@ Manual copy-paste. The actual code is edited and tested directly in the Google A
 
 ## Config reference
 
+`handlePost` takes either **one config object** or an **array of them**. The array form is how one Web App serves several forms — each config gets its own destination and its own rules, and the request picks between them with `gas_config_key`:
+
+```js
+// One form.
+const CONFIG = { sheetId: '...', sheetName: 'Registrations', /* ... */ };
+
+// Several forms — same deployment, one config each.
+const CONFIG = [
+  { key: 'registration', sheetId: '...', sheetName: 'Inscrições', /* ... */ },
+  { key: 'abstract',     sheetId: '...', sheetName: 'Abstracts',  /* ... */ },
+];
+```
+
+`key` is required in array mode and ignored otherwise. Since `sheetId` is per-config, entries can point at **different spreadsheets**, not just different tabs of one — sharing a `sheetId` (as above) is a convenience, not a constraint.
+
+Full shape of a single config:
+
 ```js
 {
   key: 'registration',          // array mode only — must match the request's gas_config_key
@@ -25,6 +42,7 @@ Manual copy-paste. The actual code is edited and tested directly in the Google A
   addTimestamp: true,
   sheetId: '...',               // the SPREADSHEET file id — /spreadsheets/d/<id>/edit — not a tab gid
   sheetName: 'Registrations',   // the tab within that spreadsheet, by its visible name
+  sheetGid: 721644865,          // optional alternative to sheetName — rename-proof, wins when set
   fieldOrder: ['email', 'name', 'timestamp'],
   formatValue: (field, value) => value,     // optional global override
   transforms: {                              // optional per-field, ignored if formatValue is set
@@ -49,7 +67,7 @@ Manual copy-paste. The actual code is edited and tested directly in the Google A
 | `transforms` | object | `{}` | Per-field rules, keyed by field name. See below. |
 | `logErrors` | boolean | off | `console.error` for request failures and transform errors. Never changes the response. |
 
-`configData` passed to `handlePost` can be a single config object (no `key` needed), or an array of configs — in array mode, the request must include a `gas_config_key` field (or a custom field name via `opts.keyField`) matching one config's `.key`.
+In array mode the request must carry `gas_config_key` matching one config's `key` — pass `opts.keyField` to `handlePost` to read it from a differently-named field. A missing key, or one matching no config, returns an error response rather than falling back to the first entry.
 
 Every request must also send `_referrer` (host or URL). It's checked against `allowedDomains` and stripped before the row is written. `gas_config_key` is **not** stripped — it lands in the sheet if you list it in `fieldOrder`.
 
