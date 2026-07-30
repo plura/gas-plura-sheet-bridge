@@ -18,20 +18,21 @@
  */
 
 const CONFIG = [
-  // Registration form → "Inscrições" tab
+  // Registration form → "Registrations" tab
   {
     key: "registration",
     sheetId: "YOUR_SPREADSHEET_ID",
-    sheetName: "Inscrições",
-    allowedDomains: ["example.pt", "www.example.pt"],
-    requiredFields: ["nome-completo", "email", "telefone", "classe-profissional", "atividades"],
+    sheetName: "Registrations",
+    // sheetGid: 721644865,  // optional: target the tab by gid instead — survives renames
+    allowedDomains: ["example.com", "www.example.com"],
+    requiredFields: ["full-name", "email", "phone", "profession", "activities"],
     fieldOrder: [
-      "nome-completo", "email", "telefone", "classe-profissional", "especialidade",
-      "numero-ordem", "numero-mecanografico", "nif", "atividades", "protecao-dados", "timestamp"
+      "full-name", "email", "phone", "profession", "specialty",
+      "license-number", "staff-number", "tax-id", "activities", "data-consent", "timestamp"
     ],
     transforms: {
-      atividades: { type: "join", sep: ", " },   // checkbox group arrives as an array
-      "protecao-dados": { type: "bool" },
+      activities: { type: "join", sep: ", " },   // checkbox group arrives as an array
+      "data-consent": { type: "bool" },
     },
     addTimestamp: true,
     logErrors: true,
@@ -42,21 +43,21 @@ const CONFIG = [
     key: "abstract",
     sheetId: "YOUR_SPREADSHEET_ID",
     sheetName: "Abstracts",
-    allowedDomains: ["example.pt", "www.example.pt"],
+    allowedDomains: ["example.com", "www.example.com"],
     requiredFields: [
-      "titulo", "nome-completo", "email", "telefone", "idade", "genero",
-      "instituicao", "abstract-titulo", "abstract-tipo",
-      "abstract-resumo", "abstract-autores", "protecao-dados"
+      "title", "full-name", "email", "phone", "age", "gender",
+      "institution", "abstract-title", "abstract-type",
+      "abstract-summary", "abstract-authors", "data-consent"
     ],
     fieldOrder: [
-      "titulo", "nome-completo", "email", "telefone", "idade", "genero",
-      "instituicao", "abstract-titulo", "abstract-tipo", "abstract-resumo",
-      "abstract-autores", "abstract-financiamento", "abstract-referencias",
-      "abstract-documentos", "protecao-dados", "timestamp"
+      "title", "full-name", "email", "phone", "age", "gender",
+      "institution", "abstract-title", "abstract-type", "abstract-summary",
+      "abstract-authors", "abstract-funding", "abstract-references",
+      "abstract-documents", "data-consent", "timestamp"
     ],
     transforms: {
-      "abstract-documentos": { type: "join", sep: ", " },
-      "protecao-dados": { type: "bool" },
+      "abstract-documents": { type: "join", sep: ", " },
+      "data-consent": { type: "bool" },
     },
     addTimestamp: true,
     logErrors: true,
@@ -72,8 +73,13 @@ function doPost(e) {
   return PluraSheetBridge.handlePost(e, CONFIG);
 }
 
-/* Contact Form 7 side — add a hidden field per form:
-     [hidden gas_config_key "registration"]
-     [hidden gas_config_key "abstract"]
-   `_referrer` is added by the WordPress sender (wp-plugin-plura), not by CF7.
+/* Routing key, sender side — two options:
+     - Resolved server-side at send time, from the sender's own settings. Preferred:
+       nothing about the routing is exposed to the browser, and a hand-added or
+       forged form field can't reach the payload.
+     - A hidden form field, e.g. Contact Form 7's [hidden gas_config_key "abstract"].
+       Simpler, but client-visible and client-editable.
+
+   `_referrer` is always added by the sender (wp-plugin-plura's plura_to_sheets),
+   never by the form itself.
 */
