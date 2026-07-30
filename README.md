@@ -71,6 +71,24 @@ In array mode the request must carry `gas_config_key` matching one config's `key
 
 Every request must also send `_referrer` (host or URL). It's checked against `allowedDomains` and stripped before the row is written. `gas_config_key` is **not** stripped — it lands in the sheet if you list it in `fieldOrder`.
 
+## Per-request destination
+
+A request can carry its own destination, so the sender decides where a submission lands instead of it being fixed in CONFIG. Both fields are optional:
+
+| Payload field | Overrides |
+| --- | --- |
+| `spreadsheet_id` | `sheetId` — bare id or a full `/spreadsheets/d/<id>/edit` URL |
+| `sheet_gid` | `sheetGid` — the `#gid=` number |
+
+Precedence is payload → CONFIG. A field that's **absent, blank, or malformed** leaves CONFIG's value in effect, so CONFIG stays the fallback rather than something you must repeat per request. Both fields are stripped before the row is written, so they can't reach a cell even if listed in `fieldOrder`.
+
+Two rules the sender has to respect:
+
+- **Blank is not zero.** `gid=0` is the first tab of every spreadsheet, so it's a real destination. Absence must be sent as an omitted field or an empty string — never as `0`, and never gated on truthiness (`if (!gid)` and PHP's `empty()` both treat a legitimate `0` as unset).
+- **A gid belongs to one file.** When `spreadsheet_id` moves a request to a different spreadsheet and no `sheet_gid` comes with it, CONFIG's `sheetGid` is dropped and resolution falls back to `sheetName`. Carrying it over would be meaningless — and since gid 0 exists in *every* spreadsheet, it would silently hit the wrong file's first tab instead of erroring. With no `sheetName` to fall back to, the request fails loudly.
+
+**Security:** the endpoint can't tell your server's request from anyone else's — `_referrer` is a body field, not an HTTP `Origin` header — so accepting a destination means anyone who can reach the Web App URL can name one. The Web App runs as the deploying account, so that reaches any spreadsheet in its Drive. Keep a destination in CONFIG, and if the set of target spreadsheets is known, gate it.
+
 ## Transforms
 
 Exactly one path runs per field, in this order:

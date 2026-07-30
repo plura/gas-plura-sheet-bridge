@@ -16,7 +16,7 @@
 function handlePost(e, configData, opts) {
   const sel = _resolveConfig(e, configData, opts);
   if (sel?.error) return sel.error;
-  return _handlePostSingle(e, sel.config);
+  return _handlePostSingle(e, _applyDestination(e, sel.config));
 }
 
 function validateRequest(e, config) {
@@ -32,6 +32,11 @@ function validateRequest(e, config) {
 
   // Remove referrer after validation
   delete data._referrer;
+
+  // Destination metadata — consumed in handlePost before this point. Stripped
+  // structurally so it can't reach a cell if someone lists it in fieldOrder.
+  delete data.spreadsheet_id;
+  delete data.sheet_gid;
 
   // Required fields
   for (const f of (config.requiredFields ?? [])) {
@@ -116,14 +121,57 @@ function _resolveConfig(e, configData, opts) {
 	return { error: createResponse("Invalid CONFIG type (expected object or array).", true) };
 }
 
-function _extractKey(e, opts) {
-  const keyField = opts?.keyField ?? "gas_config_key";
+function _parseBody(e) {
   try {
-    const body = e?.postData?.contents ? JSON.parse(e.postData.contents) : null;
-    return body?.[keyField] ?? null;
+    return e?.postData?.contents ? JSON.parse(e.postData.contents) : null;
   } catch (_) {
     return null;
   }
+}
+
+function _extractKey(e, opts) {
+  const keyField = opts?.keyField ?? "gas_config_key";
+  return _parseBody(e)?.[keyField] ?? null;
+}
+
+function _applyDestination(e, config) {
+  const body = _parseBody(e);
+  if (!body) return config;
+
+  // A copy, not a mutation: CONFIG is a shared const in the consumer project,
+  // so writing to the selected entry would leak one request's destination into
+  // whatever the next request resolves to.
+  const out = { ...config };
+
+  // Presence, not truthiness — gid 0 is the first tab of every spreadsheet, and
+  // an unfilled field arrives as "" which Number() would read as 0.
+  const rawGid = body.sheet_gid;
+  const gid = rawGid != null && String(rawGid).trim() !== "" ? Number(rawGid) : NaN;
+  const gidApplied = Number.isFinite(gid);
+  if (gidApplied) out.sheetGid = gid;
+
+  const id = _cleanSpreadsheetId(body.spreadsheet_id);
+  if (id) {
+    // A gid identifies a tab within one file, so CONFIG's gid means nothing
+    // against a different spreadsheet. Dropping it matters most for gid 0,
+    // which exists in every file and would resolve silently to the wrong tab
+    // instead of erroring; without it, resolution falls back to sheetName.
+    if (id !== config.sheetId && !gidApplied) delete out.sheetGid;
+    out.sheetId = id;
+  }
+
+  return out;
+}
+
+function _cleanSpreadsheetId(value) {
+  if (typeof value !== "string") return null;
+  const v = value.trim();
+
+  // Tolerate a pasted sheet URL — the id is the long segment after /d/.
+  const fromUrl = v.match(/\/d\/([-\w]{25,})/);
+  if (fromUrl) return fromUrl[1];
+
+  return /^[-\w]{25,}$/.test(v) ? v : null;
 }
 
 function _resolveSheet(config) {
