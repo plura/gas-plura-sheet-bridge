@@ -82,18 +82,18 @@ A request can carry its own destination, so the sender decides where a submissio
 
 Precedence is payload → CONFIG. A field that's **absent, blank, or malformed** leaves CONFIG's value in effect, so CONFIG stays the fallback rather than something you must repeat per request. Both fields are stripped before the row is written, so they can't reach a cell even if listed in `fieldOrder`.
 
-What each combination resolves to:
+A destination is two separate things — **which spreadsheet**, and **which tab inside it** — and the two payload fields resolve them independently. The left columns are what the request sends; the right columns are where the row actually lands:
 
-| `spreadsheet_id` | `sheet_gid` | Target |
-| --- | --- | --- |
-| — | — | CONFIG's `sheetGid`, else CONFIG's `sheetName`, in CONFIG's file |
-| — | given | That tab, in CONFIG's file |
-| same as CONFIG | — | Identical to sending neither |
-| **different file** | — | CONFIG's **`sheetName`**, in the new file — CONFIG's `sheetGid` is dropped. ❌ **Fails if the entry has no `sheetName`** |
-| different file | given | That gid, in the new file |
-| blank or malformed | blank or malformed | Treated as not sent — CONFIG's value stands |
+| Request sends `spreadsheet_id` | Request sends `sheet_gid` | → Spreadsheet written to | → Tab written to |
+| --- | --- | --- | --- |
+| not sent | not sent | CONFIG's `sheetId` | CONFIG's `sheetGid`, else its `sheetName` |
+| not sent | `721644865` | CONFIG's `sheetId` | gid `721644865` |
+| the same file as CONFIG | not sent | CONFIG's `sheetId` | CONFIG's `sheetGid`, else its `sheetName` |
+| **a different file** | not sent | the file the request named | CONFIG's `sheetName` — its `sheetGid` is dropped ❌ **fails if the entry has none** |
+| a different file | `55` | the file the request named | gid `55` |
+| blank or invalid | blank or invalid | CONFIG's `sheetId` | CONFIG's `sheetGid`, else its `sheetName` |
 
-Only the fourth row can fail, and only for a config written with a `sheetGid` and no `sheetName`.
+Only row four can fail, and the reason is visible in the columns: it's the one case where the request changes **which spreadsheet** but says nothing about **which tab** — leaving CONFIG's tab reference pointing into a file it doesn't belong to.
 
 Two rules the sender has to respect:
 
