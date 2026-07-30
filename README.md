@@ -48,6 +48,8 @@ Manual copy-paste. The actual code is edited and tested directly in the Google A
    ```
 3. Deploy the **consumer** project as a Web App (not this library project — this one is imported by reference, not deployed directly).
 
+See `examples/Main.js` for a full consumer project: two forms sharing one spreadsheet, routed to separate tabs via `gas_config_key`.
+
 ## Alternative workflow (not in use, but an option later)
 
 `clasp` (Google's own CLI, `npm i -g @google/clasp` or as a project devDependency) can sync between this repo and the live Apps Script project instead of manual copy-paste — either direction:
