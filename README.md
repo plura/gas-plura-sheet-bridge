@@ -1,10 +1,18 @@
 # PluraSheetBridge
 
-Reusable Google Apps Script library — validates incoming POST data and writes it to a Google Sheet. Provider-agnostic: usable by WordPress (e.g. via `wp-plugin-plura`'s `plura_cf7_to_sheets`/`plura_to_sheets`), other web apps, or any source that can POST JSON. Not tied to any single client project.
+Reusable Google Apps Script library — validates incoming POST data and writes it to a Google Sheet. Provider-agnostic: usable by WordPress (e.g. via `wp-plugin-plura`'s `plura_to_sheets`), other web apps, or any source that can POST JSON. Not tied to any single client project.
 
 ## Workflow (current)
 
 Manual copy-paste. The actual code is edited and tested directly in the Google Apps Script web editor (that's the only place it ever runs — there's no local execution). `src/PluraSheetBridge.js` here is a version-controlled mirror: after making/testing changes in the Apps Script editor, copy the final source back into this file and commit.
+
+Changes that originate **in this repo** travel the other way, and it's three steps rather than one:
+
+1. Paste `src/PluraSheetBridge.js` into the Apps Script editor and test it there.
+2. Cut a **new library version** — consumers import a pinned version, so saving alone changes nothing for them.
+3. Bump that pinned version in each consumer project (Libraries → version dropdown).
+
+Until all three happen, this repo is ahead of what's actually running. Worth syncing while a change is small: the paste is manual and all-or-nothing, so letting several changes pile up makes the one risky step riskier.
 
 **Required project settings** on the live Apps Script project (Project Settings → "Show manifest file" to edit `appsscript.json` there): runtime must be set to **V8** — the code uses optional chaining (`?.`) and nullish coalescing (`??`), which the older Rhino engine doesn't support.
 

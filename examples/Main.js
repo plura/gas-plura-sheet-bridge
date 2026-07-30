@@ -10,6 +10,11 @@
  * Each form must POST JSON containing:
  *   - `gas_config_key` — matches a CONFIG entry's `key` (array mode only)
  *   - `_referrer`      — host or URL, checked against `allowedDomains`
+ *
+ * Optionally, a request can name its own destination instead of using the one
+ * below — `spreadsheet_id` and `sheet_gid`, see README "Per-request
+ * destination". The entries here keep a `sheetName`, which is what lets such a
+ * request still resolve if it moves to a different spreadsheet.
  */
 
 const CONFIG = [
