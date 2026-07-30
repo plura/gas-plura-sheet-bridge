@@ -23,8 +23,8 @@ Manual copy-paste. The actual code is edited and tested directly in the Google A
   allowedDomains: ['example.com'],
   requiredFields: ['email'],
   addTimestamp: true,
-  sheetId: '...',
-  sheetName: 'Registrations',
+  sheetId: '...',               // the SPREADSHEET file id — /spreadsheets/d/<id>/edit — not a tab gid
+  sheetName: 'Registrations',   // the tab within that spreadsheet, by its visible name
   fieldOrder: ['email', 'name', '...'],
   formatValue: (field, value) => value,     // optional full override
   transforms: {                              // optional per-field, used if formatValue isn't set

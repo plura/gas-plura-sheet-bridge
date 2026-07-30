@@ -1,2 +1,5 @@
 .DS_Store
 Thumbs.db
+
+# VS Code workspace file — machine-specific, not part of the library
+*.code-workspace
